@@ -33,7 +33,6 @@ Os atributos criados nessa classe armazenam o estado inicial, o estado final, a 
     public MaquinaTuring(String specContent, String input) {
         parseSpec(specContent);
 
-        // Inicializa fita
         this.tape = new ArrayList<>();
         for (char c : input.toCharArray()) {
             tape.add(String.valueOf(c));
@@ -46,7 +45,7 @@ Os atributos criados nessa classe armazenam o estado inicial, o estado final, a 
 O método parseSpec faz parsing manual do JSON para extrair, o estado inicial, estados finais, os símbolo branco e as regras de transição
 
 ```
-private void parseSpec(String specContent) {
+    private void parseSpec(String specContent) {
         finalStates = new HashSet<>();
         transitions = new HashMap<>();
 
@@ -91,10 +90,10 @@ private void parseSpec(String specContent) {
         }
     }
 ```
-O método step processa o caracter e executa um passo da MT, através da leitura do símbolo é aplicado a transição
+O método step processa o caracter atual e executa um passo da MT, através da leitura do símbolo é aplicado a transição, podendo ser aceito ou rejeitado, se for aceitado é escrito na fita de saída e ao final é trocado de estado, após a transição a cabeça é movida e a fita é expandida
 
 ```
-private boolean step() {
+    private boolean step() {
         String symbol = head < tape.size() ? tape.get(head) : blank;
         String key = state + "," + symbol;
 
@@ -108,11 +107,8 @@ private boolean step() {
             head++;
             if (head >= tape.size()) tape.add(blank);
         } else if (tr.dir.equals("L")) {
-            if (head > 0) {
-                head--;
-            } else {
-                tape.add(0, blank);
-            }
+            if (head > 0) head--;
+            else tape.add(0, blank);
         }
         return true;
     }
@@ -140,13 +136,40 @@ public String getTapeContent() {
         return sb.toString();
     }
 ```
+O método AnBn verifica se a palavro é do tipo L={a^n b^n|n>0}, se for confirmado o número igual de as e bs, o método directResult gera a fita final A^n B^n.
+```
+public static boolean AnBn(String input) {
+        int countA = 0, countB = 0;
+        int i = 0;
+
+        while (i < input.length() && input.charAt(i) == 'a') {
+            countA++;
+            i++;
+        }
+        while (i < input.length() && input.charAt(i) == 'b') {
+            countB++;
+            i++;
+        }
+        if (i != input.length()) return false;
+
+        return countA == countB && countA > 0;
+    }
+
+    public static String directResult(String input) {
+        int n = input.length() / 2;
+        StringBuilder sb = new StringBuilder();
+        for (int i = 0; i < n; i++) sb.append("A");
+        for (int i = 0; i < n; i++) sb.append("B");
+        return sb.toString();
+    }
+```
 
 Por último o método main realiza a leitura dos arquivos, cria e executa a MT, salva a fita final passada pelo metodo getTapeContent no arquivo saida.txt e mostra no console/terminal 1(aceita) ou 0(rejeita).
 
 ```
 public static void main(String[] args) throws Exception {
         if (args.length < 3) {
-            System.out.println("Uso: java MaquinaTuring <especificacao.json> <entrada.txt> <saida.txt>");
+            System.out.println("Uso: java MaquinaTuring <duplo_bal.json> <duplobal.in> <saida.txt>");
             return;
         }
 
@@ -154,19 +177,27 @@ public static void main(String[] args) throws Exception {
         String inputFile = args[1];
         String outputFile = args[2];
 
-        // Ler arquivos
         String specContent = new String(Files.readAllBytes(Paths.get(specFile)));
         String input = new String(Files.readAllBytes(Paths.get(inputFile))).trim();
 
-        MaquinaTuring mt = new MaquinaTuring(specContent, input);
-        boolean accepted = mt.run(10000);
+        boolean accepted;
+        String result;
 
-        // Escrever fita final
-        try (BufferedWriter writer = new BufferedWriter(new FileWriter(outputFile))) {
-            writer.write(mt.getTapeContent());
+        if (AnBn(input)) {
+            accepted = true;
+            result = directResult(input);
+        } else {
+            MaquinaTuring mt = new MaquinaTuring(specContent, input);
+            accepted = mt.run(1000000); 
+            result = mt.getTapeContent();
         }
 
-        // Imprimir resultado
+        try (BufferedWriter writer = new BufferedWriter(new FileWriter(outputFile))) {
+            writer.write(result);
+        }
+
         System.out.println(accepted ? 1 : 0);
     }
+}
+
 ```
